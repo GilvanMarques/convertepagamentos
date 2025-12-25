@@ -1,0 +1,37 @@
+# Configuração Bradesco Multipag
+# Preencha com os dados da sua empresa e conta
+
+empresa:
+  # Tipo de inscrição: 1=CPF, 2=CNPJ
+  tipo_inscricao: 2
+  # Número de inscrição (CPF ou CNPJ, apenas números)
+  numero_inscricao: "07901675000150"
+  # Nome da empresa (máximo 30 caracteres)
+  nome: "EMPRESA EXEMPLO LTDA"
+
+conta:
+  # Código do convênio (máximo 20 caracteres)
+  # Se não tiver código do convênio, deixar vazio (será preenchido com espaços)
+  # Formato: 6 primeiros dígitos (033-038) alinhados à esquerda + 14 espaços (039-052)
+  codigo_convenio: ""
+  # Agência (5 dígitos, apenas números)
+  agencia: "00134"
+  # Dígito da agência (1 caractere alfanumérico)
+  digito_agencia: ""
+  # Conta corrente (12 dígitos, apenas números, zero-fill à esquerda)
+  conta: "00000184492"
+  # Dígito da conta (1 caractere alfanumérico)
+  digito_conta: "0"
+  # Dígito verificador Agência/Conta (opcional)
+  digito_verificador: ""
+
+# Parâmetros do arquivo
+arquivo:
+  # Número sequencial inicial (será incrementado automaticamente)
+  sequencial_inicial: 1
+  # Layout do Arquivo (conforme manual Bradesco Multipag)
+  # Para TED/DOC deve ser 080 (não 089)
+  layout_arquivo: 80
+  # Layout do Lote (conforme manual Bradesco Multipag)
+  layout_lote: 12
+
