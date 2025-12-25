@@ -1,15 +1,76 @@
-# Gerador de REMESSA CNAB 240 - PIX Bradesco Multipag
+# Gerador de REMESSA CNAB 240 - Bradesco Multipag
 
-Sistema para geração de arquivos de remessa CNAB 240 para pagamentos PIX via Bradesco Multipag.
+Sistema para geração de arquivos de remessa CNAB 240 para pagamentos PIX, TED e DOC via Bradesco Multipag.
+
+## 🚀 Interface Web (Streamlit)
+
+O projeto inclui uma interface web moderna construída com Streamlit para facilitar o uso.
+
+### Instalação Rápida
+
+**Opção 1: Script Automático (Recomendado)**
+```bash
+# macOS/Linux
+./instalar_dependencias.sh
+
+# Windows
+instalar_dependencias.bat
+```
+
+**Opção 2: Manual**
+```bash
+# Instale as dependências (incluindo Streamlit)
+pip install -r requirements.txt
+```
+
+### Iniciar a Interface Web
+
+```bash
+# Execute a aplicação
+streamlit run app/streamlit_app.py
+```
+
+A aplicação abrirá automaticamente no navegador em `http://localhost:8501`.
+
+A aplicação abrirá automaticamente no navegador em `http://localhost:8501`.
+
+### Fluxo de Trabalho na Interface
+
+1. **⚙️ Configuração**: Configure os dados da empresa e conta bancária
+2. **📊 Importar Excel**: Faça upload do arquivo Excel com os pagamentos
+3. **✅ Validar**: Execute a validação dos dados
+4. **📄 Gerar CNAB**: Gere e baixe o arquivo CNAB 240
+
+### Recursos da Interface
+
+- ✅ Validação em tempo real
+- 📊 Visualização de dados
+- 📥 Download de arquivos gerados
+- 📋 Relatórios de validação
+- 🎨 Interface intuitiva e profissional
+
+---
+
+## 💻 Uso via Linha de Comando
+
+Para uso via linha de comando (sem interface web):
 
 ## Estrutura do Projeto
 
 ```
 ConversorPagamentos/
+├── app/                          # Interface Streamlit
+│   ├── streamlit_app.py         # Aplicação principal
+│   └── pages/                    # Páginas da aplicação
+│       ├── 1_⚙️_Configuração.py
+│       ├── 2_📊_Importar_Excel.py
+│       ├── 3_✅_Validar.py
+│       └── 4_📄_Gerar_CNAB.py
 ├── src/
 │   └── cnab240/
 │       ├── __init__.py
-│       ├── bradesco_pix.py      # Geração de registros CNAB 240
+│       ├── bradesco_pix.py      # Geração CNAB 240 PIX
+│       ├── bradesco_ted.py      # Geração CNAB 240 TED/DOC
 │       ├── fields.py             # Formatadores de campos
 │       ├── validate.py           # Validações
 │       └── config.py             # Carregamento de configuração
@@ -21,7 +82,7 @@ ConversorPagamentos/
 │   ├── test_fields.py            # Testes dos formatadores
 │   └── test_validate.py          # Testes das validações
 ├── output/                       # Arquivos gerados
-├── main.py                       # Script principal
+├── main.py                       # Script principal (CLI)
 ├── requirements.txt              # Dependências Python
 └── README.md                     # Este arquivo
 ```

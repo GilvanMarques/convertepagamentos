@@ -1,7 +1,6 @@
 """
 Carregamento de configuração do arquivo YAML
 """
-import yaml
 import os
 from pathlib import Path
 
@@ -15,7 +14,20 @@ def load_config(config_path: str | None = None) -> dict:
     
     Returns:
         Dicionário com as configurações
+    
+    Raises:
+        ImportError: Se o PyYAML não estiver instalado
+        FileNotFoundError: Se o arquivo de configuração não for encontrado
     """
+    # Importação lazy do yaml (só importa quando necessário)
+    try:
+        import yaml
+    except ImportError:
+        raise ImportError(
+            "Módulo PyYAML não encontrado. "
+            "Instale com: pip install PyYAML ou pip install -r requirements.txt"
+        )
+    
     if config_path is None:
         # Tenta encontrar o arquivo de config no diretório config/
         base_dir = Path(__file__).parent.parent.parent

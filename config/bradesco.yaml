@@ -1,5 +1,6 @@
 # Configuração Bradesco Multipag
 # Preencha com os dados da sua empresa e conta
+# Arquivo gerado automaticamente em 25/12/2025 17:15:10
 
 empresa:
   # Tipo de inscrição: 1=CPF, 2=CNPJ
@@ -7,7 +8,7 @@ empresa:
   # Número de inscrição (CPF ou CNPJ, apenas números)
   numero_inscricao: "07901675000150"
   # Nome da empresa (máximo 30 caracteres)
-  nome: "EMPRESA EXEMPLO LTDA"
+  nome: "MUCHMORE PARTICIPAÇÕES LTDA"
 
 conta:
   # Código do convênio (máximo 20 caracteres)
@@ -19,7 +20,7 @@ conta:
   # Dígito da agência (1 caractere alfanumérico)
   digito_agencia: ""
   # Conta corrente (12 dígitos, apenas números, zero-fill à esquerda)
-  conta: "00000184492"
+  conta: "000000184492"
   # Dígito da conta (1 caractere alfanumérico)
   digito_conta: "0"
   # Dígito verificador Agência/Conta (opcional)
@@ -34,4 +35,3 @@ arquivo:
   layout_arquivo: 80
   # Layout do Lote (conforme manual Bradesco Multipag)
   layout_lote: 12
-
