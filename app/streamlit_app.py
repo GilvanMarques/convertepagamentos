@@ -93,6 +93,20 @@ if 'validacao_resultado' not in st.session_state:
 if 'arquivo_gerado' not in st.session_state:
     st.session_state.arquivo_gerado = None
 
+# Carrega automaticamente a configuração padrão do YAML (Configuração é opcional)
+if st.session_state.config is None:
+    try:
+        from src.cnab240.config import load_config
+
+        config_path = Path(__file__).parent.parent / 'config' / 'bradesco.yaml'
+        st.session_state.config = load_config(str(config_path))
+    except Exception as e:
+        st.error(
+            "❌ Não foi possível carregar a configuração padrão em `config/bradesco.yaml`.\n\n"
+            f"Detalhe: {e}"
+        )
+        st.stop()
+
 # Header principal
 st.markdown('<h1 class="main-header">🏦 Gerador CNAB 240 - Bradesco Multipag</h1>', unsafe_allow_html=True)
 
@@ -108,7 +122,7 @@ with st.sidebar:
     
     **Fluxo de trabalho:**
     1. 📊 Importar Excel
-    2. ✅ Validar Dados
+    2. ✅ Validar Dados (na própria página Importar Excel)
     3. 📄 Gerar CNAB
     4. ⚙️ Configuração (opcional)
     """)

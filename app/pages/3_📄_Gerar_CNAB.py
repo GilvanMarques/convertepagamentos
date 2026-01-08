@@ -71,7 +71,7 @@ if 'pagamentos' not in st.session_state or st.session_state.pagamentos is None:
     erros_preliminares.append("⚠️ Importe o arquivo Excel na página **Importar Excel**.")
 
 if 'validacao_resultado' not in st.session_state or st.session_state.validacao_resultado is None:
-    erros_preliminares.append("⚠️ Execute a validação na página **Validar**.")
+    erros_preliminares.append("⚠️ Execute a validação na página **Importar Excel**.")
 
 if erros_preliminares:
     for erro in erros_preliminares:
