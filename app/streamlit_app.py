@@ -136,7 +136,7 @@ with st.sidebar:
     st.divider()
     
     # Botão para limpar sessão
-    if st.button("🔄 Limpar Sessão", use_container_width=True):
+    if st.button("🔄 Limpar Sessão", width="stretch"):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()

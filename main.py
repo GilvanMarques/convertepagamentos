@@ -318,9 +318,13 @@ def main():
             filename = f"BRADESCO_{tipo_arquivo}_REMESSA_{file_date.strftime('%Y%m%d')}_{file_seq:06d}.txt"
             file_path = output_dir / filename
             
-            with open(file_path, 'w', encoding='ascii') as f:
+            # Salva arquivo em modo binário para garantir exatamente CRLF (\r\n),
+            # sem duplicar \r por conversões automáticas de newline do Python.
+            # O CNAB240 deve ter CRLF no final de cada linha, incluindo a última.
+            with open(file_path, 'wb') as f:
                 for line in lines:
-                    f.write(line + '\r\n')  # CRLF
+                    f.write(line.encode('ascii', errors='strict'))
+                    f.write(b'\r\n')
             
             arquivos_gerados.append({
                 'tipo': tipo,

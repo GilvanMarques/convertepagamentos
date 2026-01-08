@@ -90,6 +90,20 @@ config = st.session_state.config
 pagamentos = st.session_state.pagamentos
 data_gravacao = st.session_state.get('data_gravacao', datetime.now().date())
 
+# Garante que a config em memória tenha os defaults do convênio TED validado
+config.setdefault('arquivo', {})
+config['arquivo'].setdefault('forma_lancamento_ted', '41')
+config['arquivo'].setdefault('layout_lote_ted', 45)
+config['arquivo'].setdefault('layout_lote_doc_ted', 45)
+
+# Persistir a config da sessão em um YAML temporário para garantir que os geradores
+# usem exatamente os mesmos parâmetros mostrados na UI (sem depender do YAML do disco).
+output_dir = Path(__file__).parent.parent.parent / 'output'
+output_dir.mkdir(parents=True, exist_ok=True)
+config_temp_path = output_dir / '_config_streamlit.yaml'
+with open(config_temp_path, 'w', encoding='utf-8') as f:
+    yaml.safe_dump(config, f, allow_unicode=True, sort_keys=False)
+
 # Agrupa pagamentos por tipo
 tipos_pagamento = {}
 for p in pagamentos:
@@ -133,7 +147,7 @@ if tipos_pagamento:
         })
     
     df_tipos = pd.DataFrame(dados_tabela)
-    st.dataframe(df_tipos, use_container_width=True, hide_index=True)
+    st.dataframe(df_tipos, width="stretch", hide_index=True)
 else:
     st.warning("⚠️ Nenhum pagamento encontrado para gerar arquivos.")
     st.stop()
@@ -142,7 +156,7 @@ else:
 st.divider()
 st.subheader("🚀 Gerar Arquivos CNAB")
 
-if st.button("▶️ Gerar Todos os Arquivos CNAB", use_container_width=True, type="primary"):
+if st.button("▶️ Gerar Todos os Arquivos CNAB", width="stretch", type="primary"):
     with st.spinner("Gerando arquivos CNAB..."):
         try:
             # Prepara data
@@ -162,7 +176,7 @@ if st.button("▶️ Gerar Todos os Arquivos CNAB", use_container_width=True, ty
                 try:
                     # Gera arquivo conforme tipo
                     if tipo == 'PIX':
-                        generator = BradescoPIXGenerator()
+                        generator = BradescoPIXGenerator(str(config_temp_path))
                         lines = generator.generate_file(
                             pagamentos_tipo,
                             file_date=file_date,
@@ -170,7 +184,7 @@ if st.button("▶️ Gerar Todos os Arquivos CNAB", use_container_width=True, ty
                         )
                         nome_arquivo = f"BRADESCO_PIX_REMESSA_{file_date.strftime('%Y%m%d')}_{sequencial_atual:06d}.txt"
                     elif tipo in ['TED', 'DOC']:
-                        generator = BradescoTEDGenerator()
+                        generator = BradescoTEDGenerator(str(config_temp_path))
                         lines = generator.generate_file(
                             pagamentos_tipo,
                             file_date=file_date,
@@ -203,8 +217,9 @@ if st.button("▶️ Gerar Todos os Arquivos CNAB", use_container_width=True, ty
                     # Calcula total do tipo
                     total_valor = sum(p.get('valor', 0) for p in pagamentos_tipo)
                     
-                    # Salva arquivo
-                    arquivo_conteudo = '\r\n'.join(lines)
+                    # Salva arquivo (conteúdo para download/zip)
+                    # CNAB240 exige CRLF ao final de cada linha, incluindo a última.
+                    arquivo_conteudo = '\r\n'.join(lines) + '\r\n'
                     arquivos_gerados.append({
                         'nome': nome_arquivo,
                         'conteudo': arquivo_conteudo,
@@ -295,10 +310,11 @@ if 'arquivos_gerados' in st.session_state and st.session_state.arquivos_gerados:
             # Download individual
             st.download_button(
                 label=f"📥 Baixar {arquivo['nome']}",
-                data=arquivo['conteudo'].encode('utf-8'),
+                # CNAB deve ser ASCII (sem BOM) e com CRLF já embutido em `conteudo`
+                data=arquivo['conteudo'].encode('ascii', errors='strict'),
                 file_name=arquivo['nome'],
                 mime="text/plain",
-                use_container_width=True,
+                width="stretch",
                 key=f"download_{idx}"
             )
             
@@ -309,13 +325,22 @@ if 'arquivos_gerados' in st.session_state and st.session_state.arquivos_gerados:
             
             # Informações técnicas
             with st.expander("ℹ️ Informações Técnicas", expanded=False):
+                # Extrai layouts diretamente do conteúdo (evita divergência com config)
+                linhas = arquivo['conteudo'].split('\r\n')
+                # remove última linha vazia se houver (por causa do CRLF final)
+                if linhas and linhas[-1] == '':
+                    linhas = linhas[:-1]
+                layout_arquivo_real = linhas[0][163:166] if len(linhas) >= 1 and len(linhas[0]) >= 166 else 'N/A'
+                layout_lote_real = linhas[1][13:16] if len(linhas) >= 2 and len(linhas[1]) >= 16 else 'N/A'
+                forma_lanc_real = linhas[1][11:13] if len(linhas) >= 2 and len(linhas[1]) >= 13 else 'N/A'
+                tipo_serv_real = linhas[1][9:11] if len(linhas) >= 2 and len(linhas[1]) >= 11 else 'N/A'
                 st.markdown(f"""
                 - **Tamanho de cada linha**: 240 caracteres
                 - **Total de linhas**: {arquivo['linhas']}
                 - **Formato**: CNAB 240
                 - **Banco**: Bradesco (237)
-                - **Layout do Arquivo**: {config.get('arquivo', {}).get('layout_arquivo', 'N/A')}
-                - **Layout do Lote**: {config.get('arquivo', {}).get('layout_lote', 'N/A')}
+                - **Layout do Arquivo (164-166)**: {layout_arquivo_real}
+                - **Header Lote (10-16)**: serviço={tipo_serv_real} forma={forma_lanc_real} layout={layout_lote_real}
                 """)
     
     # Botão para salvar todos os arquivos
@@ -326,7 +351,8 @@ if 'arquivos_gerados' in st.session_state and st.session_state.arquivos_gerados:
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for arquivo in arquivos:
-            zip_file.writestr(arquivo['nome'], arquivo['conteudo'].encode('utf-8'))
+            # CNAB deve ser ASCII (sem BOM) e com CRLF já embutido em `conteudo`
+            zip_file.writestr(arquivo['nome'], arquivo['conteudo'].encode('ascii', errors='strict'))
     
     zip_buffer.seek(0)
     nome_zip = f"BRADESCO_CNAB_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
@@ -339,12 +365,12 @@ if 'arquivos_gerados' in st.session_state and st.session_state.arquivos_gerados:
             data=zip_buffer.getvalue(),
             file_name=nome_zip,
             mime="application/zip",
-            use_container_width=True,
+            width="stretch",
             type="primary"
         )
     
     with col2:
-        if st.button("🔄 Gerar Novos Arquivos", use_container_width=True):
+        if st.button("🔄 Gerar Novos Arquivos", width="stretch"):
             st.session_state.arquivos_gerados = None
             st.rerun()
 

@@ -40,12 +40,19 @@ pdf_extracted.txt
 # Arquivos de saída (manter estrutura, mas não os arquivos)
 output/*.txt
 output/*.csv
+output/_config_streamlit.yaml
 !output/.gitkeep
 
 # Arquivos Excel temporários
 ~$*.xlsx
 ~$*.xls
 
+# Arquivos locais (não versionar)
+Notas Webiss.xlsx
+
 # macOS
 .DS_Store
+
+
+
 

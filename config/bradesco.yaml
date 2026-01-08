@@ -1,6 +1,6 @@
 # Configuração Bradesco Multipag
 # Preencha com os dados da sua empresa e conta
-# Arquivo gerado automaticamente em 25/12/2025 17:15:10
+# Arquivo gerado automaticamente em 06/01/2026 18:54:04
 
 empresa:
   # Tipo de inscrição: 1=CPF, 2=CNPJ
@@ -14,7 +14,7 @@ conta:
   # Código do convênio (máximo 20 caracteres)
   # Se não tiver código do convênio, deixar vazio (será preenchido com espaços)
   # Formato: 6 primeiros dígitos (033-038) alinhados à esquerda + 14 espaços (039-052)
-  codigo_convenio: ""
+  codigo_convenio: "0000391266"
   # Agência (5 dígitos, apenas números)
   agencia: "00134"
   # Dígito da agência (1 caractere alfanumérico)
@@ -34,4 +34,11 @@ arquivo:
   # Para TED/DOC deve ser 080 (não 089)
   layout_arquivo: 80
   # Layout do Lote (conforme manual Bradesco Multipag)
+  # Para DOC/TED (forma 03), o manual indica "045" no Header de Lote (posições 14-16)
+  layout_lote_doc_ted: 45
+  # Convênio (TED) - Bradesco orientou:
+  # forma_lancamento = 41 (TED outra titularidade) com layout_lote = 045
+  forma_lancamento_ted: "41"
+  layout_lote_ted: 45
+  # Mantém compatibilidade (PIX usa 012 no seu gerador PIX)
   layout_lote: 12

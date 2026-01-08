@@ -58,10 +58,10 @@ class BradescoPIXGenerator:
         empresa = self.config['empresa']
         conta = self.config['conta']
         arquivo_config = self.config.get('arquivo', {})
-        layout_arquivo = arquivo_config.get('layout_arquivo', 89)  # Padrão 089
-        # Garante que seja tratado como número (pode vir como string do YAML)
-        if isinstance(layout_arquivo, str):
-            layout_arquivo = int(layout_arquivo)
+        # Layout do Arquivo para PIX Multipag: 089 (conforme especificação)
+        # O sistema Bradesco Multipag exige 089 para arquivos de pagamento
+        # SEMPRE usar 089 para Multipag, independente do config
+        layout_arquivo = 89  # Multipag exige 089 (forçado)
         
         line = ''
         line += fields.format_numeric(237, 3)  # Código do Banco

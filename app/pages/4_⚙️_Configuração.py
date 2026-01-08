@@ -270,14 +270,28 @@ with st.form("config_form"):
         value=config.get('arquivo', {}).get('layout_lote', 12),
         help="012 para PIX, 040 para TED/DOC"
     )
+
+    st.markdown("#### 🧾 Parâmetros TED (convênio)")
+    forma_lancamento_ted = st.text_input(
+        "Forma de Lançamento TED (pos. 12-13)",
+        value=str(config.get('arquivo', {}).get('forma_lancamento_ted', '41')),
+        max_chars=2,
+        help="Código de 2 dígitos exigido pelo Bradesco para TED neste convênio. Ex.: 41 = TED outra titularidade."
+    )
+    layout_lote_ted = st.number_input(
+        "Layout do Lote TED (pos. 14-16)",
+        min_value=1,
+        value=int(config.get('arquivo', {}).get('layout_lote_ted', 45)),
+        help="Versão do layout do lote para TED neste convênio. Ex.: 45 = '045' (default do manual)."
+    )
     
     col1, col2 = st.columns(2)
     
     with col1:
-        submitted = st.form_submit_button("💾 Salvar na Memória", use_container_width=True)
+        submitted = st.form_submit_button("💾 Salvar na Memória", width="stretch")
     
     with col2:
-        salvar_arquivo = st.form_submit_button("💾 Salvar no Arquivo YAML", use_container_width=True, type="primary")
+        salvar_arquivo = st.form_submit_button("💾 Salvar no Arquivo YAML", width="stretch", type="primary")
     
     if submitted or salvar_arquivo:
         # Validações antes de salvar
@@ -327,7 +341,12 @@ with st.form("config_form"):
                 'arquivo': {
                     'sequencial_inicial': int(sequencial_inicial),
                     'layout_arquivo': int(layout_arquivo),
-                    'layout_lote': int(layout_lote)
+                    'layout_lote': int(layout_lote),
+                    # Parâmetros TED (convênio)
+                    'forma_lancamento_ted': str(forma_lancamento_ted).zfill(2)[:2],
+                    'layout_lote_ted': int(layout_lote_ted),
+                    # Default do manual para DOC/TED (quando aplicável)
+                    'layout_lote_doc_ted': int(config.get('arquivo', {}).get('layout_lote_doc_ted', 45)),
                 }
             }
             
@@ -376,6 +395,11 @@ arquivo:
   layout_arquivo: {nova_config['arquivo']['layout_arquivo']}
   # Layout do Lote (conforme manual Bradesco Multipag)
   layout_lote: {nova_config['arquivo']['layout_lote']}
+  # Convênio TED (conforme orientação/validador Bradesco)
+  forma_lancamento_ted: "{nova_config['arquivo']['forma_lancamento_ted']}"
+  layout_lote_ted: {nova_config['arquivo']['layout_lote_ted']}
+  # Default do manual (Header de Lote)
+  layout_lote_doc_ted: {nova_config['arquivo']['layout_lote_doc_ted']}
 """
                     
                     # Salva no arquivo

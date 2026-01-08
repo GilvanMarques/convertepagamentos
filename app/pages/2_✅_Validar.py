@@ -49,7 +49,7 @@ if 'validacao_resultado' not in st.session_state:
 # Botão para executar validação
 st.subheader("🔍 Executar Validação")
 
-if st.button("▶️ Validar Todos os Pagamentos", use_container_width=True, type="primary"):
+if st.button("▶️ Validar Todos os Pagamentos", width="stretch", type="primary"):
     with st.spinner("Validando pagamentos..."):
         erros = []
         avisos = []
@@ -129,19 +129,19 @@ if st.session_state.validacao_resultado:
     if resultado['erros']:
         st.subheader("❌ Erros Encontrados")
         df_erros = pd.DataFrame(resultado['erros'])
-        st.dataframe(df_erros, use_container_width=True, hide_index=True)
+        st.dataframe(df_erros, width="stretch", hide_index=True)
     
     # Tabela de avisos
     if resultado['avisos']:
         st.subheader("⚠️ Avisos")
         df_avisos = pd.DataFrame(resultado['avisos'])
-        st.dataframe(df_avisos, use_container_width=True, hide_index=True)
+        st.dataframe(df_avisos, width="stretch", hide_index=True)
     
     # Tabela de válidos (se houver espaço)
     if resultado['validos'] and len(resultado['validos']) <= 50:
         with st.expander(f"✅ Pagamentos Válidos ({len(resultado['validos'])})", expanded=False):
             df_validos = pd.DataFrame(resultado['validos'])
-            st.dataframe(df_validos, use_container_width=True, hide_index=True)
+            st.dataframe(df_validos, width="stretch", hide_index=True)
     
     # Download do relatório
     st.divider()
@@ -161,7 +161,7 @@ if st.session_state.validacao_resultado:
             data=csv,
             file_name=f"relatorio_validacao_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv",
-            use_container_width=True
+            width="stretch"
         )
     
     # Indicador de progresso

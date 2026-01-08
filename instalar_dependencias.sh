@@ -25,3 +25,6 @@ echo "🚀 Para executar a aplicação Streamlit:"
 echo "   streamlit run app/streamlit_app.py"
 echo ""
 
+
+
+

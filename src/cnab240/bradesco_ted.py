@@ -81,9 +81,10 @@ class BradescoTEDGenerator:
         empresa = self.config['empresa']
         conta = self.config['conta']
         arquivo_config = self.config.get('arquivo', {})
-        layout_arquivo = arquivo_config.get('layout_arquivo', 80)
-        if isinstance(layout_arquivo, str):
-            layout_arquivo = int(layout_arquivo)
+        # Layout do Arquivo para TED/DOC Multipag: 089 (conforme erro de validação)
+        # O sistema Bradesco Multipag exige 089 para arquivos de pagamento
+        # SEMPRE usar 089 para Multipag, independente do config
+        layout_arquivo = 89  # Multipag exige 089 (forçado)
         
         # Data de gravação (colunas 144-151)
         # IMPORTANTE: Header Arquivo e Header Lote DEVEM usar a MESMA data (data corrente)
@@ -140,56 +141,88 @@ class BradescoTEDGenerator:
         empresa = self.config['empresa']
         conta = self.config['conta']
         arquivo_config = self.config.get('arquivo', {})
-        # Layout do Lote para TED/DOC: 040 (conforme manual Bradesco)
-        layout_lote = 40
+        # IMPORTANTE (Bradesco Multipag):
+        # - O validador do banco tem rejeitado "Tipo de Serviço = 30" como se fosse "Pagamento Salários".
+        # - Para pagamentos TED/DOC (Segmentos A/B), use "Tipo de Serviço = 20" (Pagamentos/Fornecedor).
+        # - A versão do layout do lote (014-016) pode variar por contrato/validador.
+        #   No manual Multipag (Versão 08), para "Registro Header de Lote" o default é **045**.
+        #   Por isso, é parametrizável em `config/bradesco.yaml`:
+        #     arquivo:
+        #       layout_lote_doc_ted: 45   # gera "045" (forma 03)
+        #       layout_lote_doc: 45       # gera "045" (forma 06, se aplicável)
+        #   Se não informado, usamos o default do manual (045).
+        # Forma de lançamento (pos. 12-13)
+        # Padrão CNAB: 03 = DOC/TED. Porém, alguns convênios/validador do Bradesco podem exigir
+        # uma "TED específica" (código diferente de 03). Por isso, é parametrizável no YAML:
+        #
+        # arquivo:
+        #   forma_lancamento_ted: "03"   # substitua pelo código exigido pelo convênio
+        #   forma_lancamento_doc: "06"
+        #
+        if tipo_servico.upper() == 'TED':
+            # Default ajustado conforme orientação do validador Bradesco:
+            # 41 = TED (outra titularidade) para este convênio
+            forma_lancamento = str(arquivo_config.get('forma_lancamento_ted', '41')).zfill(2)[:2]
+        else:
+            forma_lancamento = str(arquivo_config.get('forma_lancamento_doc', '06')).zfill(2)[:2]
+
+        # Layout do lote (pos. 14-16) - parametrizável
+        # Por default, seguimos o manual Multipag (Versão 08): "045".
+        # Se o Bradesco exigir outra versão para a "TED específica" do seu convênio (ex.: 031),
+        # informe no YAML:
+        #
+        # arquivo:
+        #   layout_lote_ted: 31
+        #
+        if tipo_servico.upper() == 'TED':
+            layout_lote = arquivo_config.get('layout_lote_ted', arquivo_config.get('layout_lote_doc_ted', 45))
+        else:
+            layout_lote = arquivo_config.get('layout_lote_doc', 45)
         if isinstance(layout_lote, str):
             layout_lote = int(layout_lote)
+        layout_lote = int(layout_lote)
         
-        # Forma de lançamento: 03=TED, 06=DOC
-        forma_lancamento = '03' if tipo_servico.upper() == 'TED' else '06'
-        
+        # Montagem conforme manual Multipag (Versão 08) - Registro Header de Lote (posições 1-240)
+        # Campos críticos para o validador:
+        # - 10-11 Tipo de Serviço = 20 (Pagamento/Fornecedor)
+        # - 12-13 Forma de Lançamento = 41 (TED outra titularidade)
+        # - 14-16 Layout do Lote = 045
+        # - 223-224 Indicativo da Forma de Pagamento do Serviço = 01
         line = ''
-        line += fields.format_numeric(237, 3)  # Código do Banco
-        line += fields.format_numeric(1, 4)  # Lote de Serviço (0001)
-        line += fields.format_numeric(1, 1)  # Tipo de Registro
-        line += fields.format_alphanumeric('C', 1)  # Tipo de Operação
-        # Tipo de Serviço: 30=Pagamentos Diversos (não 20=Salários)
-        # Para TED/DOC, usar 30 ao invés de 20
-        line += fields.format_numeric(30, 2)  # Tipo de Serviço (30=Pagamentos Diversos)
-        line += fields.format_numeric(forma_lancamento, 2)  # Forma de Lançamento (03=TED, 06=DOC)
-        line += fields.format_numeric(layout_lote, 3)  # Layout do Lote
-        line += fields.format_alphanumeric('', 1)  # CNAB Reservado
-        line += fields.format_numeric(empresa['tipo_inscricao'], 1)  # Tipo de Inscrição
-        # CNPJ: apenas números, zero-fill à esquerda até 14 posições
+        line += fields.format_numeric(237, 3)  # 1-3 Banco
+        line += fields.format_numeric(1, 4)  # 4-7 Lote
+        line += fields.format_numeric(1, 1)  # 8 Registro
+        line += fields.format_alphanumeric('C', 1)  # 9 Operação
+        line += fields.format_numeric(20, 2)  # 10-11 Tipo de Serviço
+        line += fields.format_numeric(forma_lancamento, 2)  # 12-13 Forma de Lançamento
+        line += fields.format_numeric(layout_lote, 3)  # 14-16 Layout do Lote
+        line += fields.format_alphanumeric('', 1)  # 17 CNAB
+        line += fields.format_numeric(empresa['tipo_inscricao'], 1)  # 18 Tipo inscrição empresa
         cnpj_clean = ''.join(filter(str.isdigit, str(empresa['numero_inscricao'])))
-        line += fields.format_numeric(cnpj_clean, 14)  # Número de Inscrição (14 posições)
-        # Código do Convênio: alinhar à esquerda
-        # 033-038: 6 caracteres alinhados à esquerda (ou espaços se vazio)
-        # 039-052: 14 caracteres em branco (espaços)
+        line += fields.format_numeric(cnpj_clean, 14)  # 19-32 Número inscrição empresa
+        # 33-52 Convênio (6 à esquerda + 14 espaços)
         codigo_conv = str(conta.get('codigo_convenio', '')).strip()
-        if codigo_conv:
-            # Se tiver código, usa primeiros 6 caracteres alinhados à esquerda
-            parte1 = codigo_conv[:6].ljust(6)  # 033-038: alinha à esquerda
-        else:
-            # Se não tiver código, deixa em branco (6 espaços)
-            parte1 = ' ' * 6  # 033-038: espaços
-        # 039-052: sempre em branco (14 espaços)
+        parte1 = codigo_conv[:6].ljust(6) if codigo_conv else (' ' * 6)
         parte2 = ' ' * 14
         line += parte1 + parte2
-        line += fields.format_numeric(conta['agencia'], 5)  # Agência Mantenedora
-        line += fields.format_alphanumeric(conta['digito_agencia'], 1)  # Dígito da Agência
-        line += fields.format_numeric(conta['conta'], 12)  # Conta Corrente
-        line += fields.format_alphanumeric(conta['digito_conta'], 1)  # Dígito da Conta
-        line += fields.format_alphanumeric(conta.get('digito_verificador', ''), 1)  # DV Ag/Conta
-        line += fields.format_alphanumeric(empresa['nome'], 30)  # Nome da Empresa
-        line += fields.format_alphanumeric('', 40)  # Mensagem 1
-        line += fields.format_alphanumeric('', 40)  # Mensagem 2
-        line += fields.format_numeric(remessa_seq, 9)  # Número Remessa/Retorno
-        # Data de Gravação: formato DDMMAAAA (mesma data do Header Arquivo)
-        data_gravacao_lote = file_date.strftime('%d%m%Y') if file_date else datetime.now().strftime('%d%m%Y')
-        line += data_gravacao_lote  # Data de Gravação (formato DDMMAAAA)
-        line += fields.format_alphanumeric('', 8)  # Data de Crédito (brancos)
-        line += fields.format_alphanumeric('', 33)  # CNAB Reservado
+        line += fields.format_numeric(conta['agencia'], 5)  # 53-57 Agência
+        line += fields.format_alphanumeric(conta['digito_agencia'], 1)  # 58 DV Agência
+        line += fields.format_numeric(conta['conta'], 12)  # 59-70 Conta
+        line += fields.format_alphanumeric(conta['digito_conta'], 1)  # 71 DV Conta
+        line += fields.format_alphanumeric(conta.get('digito_verificador', ''), 1)  # 72 DV Ag/Conta
+        line += fields.format_alphanumeric(empresa['nome'], 30)  # 73-102 Nome Empresa
+        line += fields.format_alphanumeric('', 40)  # 103-142 Informação 1 (Mensagem)
+        # 143-222 Dados de endereço (não utilizados): preencher conforme manual
+        line += fields.format_alphanumeric('', 30)  # 143-172 Logradouro
+        line += fields.format_numeric(0, 5)  # 173-177 Número do local
+        line += fields.format_alphanumeric('', 15)  # 178-192 Complemento
+        line += fields.format_alphanumeric('', 20)  # 193-212 Cidade
+        line += fields.format_numeric(0, 5)  # 213-217 CEP (5)
+        line += fields.format_alphanumeric('', 3)  # 218-220 Complemento CEP (3)
+        line += fields.format_alphanumeric('', 2)  # 221-222 Estado
+        line += fields.format_numeric(1, 2)  # 223-224 Indicativo da Forma de Pagamento do Serviço = 01
+        line += fields.format_alphanumeric('', 6)  # 225-230 CNAB
+        line += fields.format_alphanumeric('', 10)  # 231-240 Ocorrências (branco em remessa)
         
         return fields.ensure_length_240(line)
     
@@ -272,9 +305,15 @@ class BradescoTEDGenerator:
         if not finalidade_ted or len(finalidade_ted) < 5:
             finalidade_ted = '00001'  # Padrão se não informado
         line += fields.format_numeric(finalidade_ted, 5)  # Código Finalidade TED (5 posições)
-        # Exclusivo FEBRABAN (colunas 225-229, 5 posições): DEIXAR EM BRANCO
-        # O Bradesco exige que essas 5 posições estejam completamente em branco
-        line += fields.format_alphanumeric('', 5)  # Exclusivo FEBRABAN (225-229, 5 espaços)
+        # Código Finalidade Complementar (colunas 225-226, 2 posições)
+        # 'CC' para Conta Corrente ou 'PP' para Poupança
+        tipo_conta = pagamento.get('tipo_conta', 'CC').upper()
+        if tipo_conta not in ['CC', 'PP']:
+            tipo_conta = 'CC'  # Padrão: Conta Corrente
+        line += fields.format_alphanumeric(tipo_conta, 2)  # Código Finalidade Complementar (225-226, 'CC' ou 'PP')
+        # Exclusivo FEBRABAN (colunas 227-229, 3 posições): DEIXAR EM BRANCO
+        # O Bradesco exige que essas 3 posições estejam completamente em branco
+        line += fields.format_alphanumeric('', 3)  # Exclusivo FEBRABAN (227-229, 3 espaços)
         # Aviso ao favorecido: 0 ou 1 (não pode ser vazio) (230)
         aviso = pagamento.get('aviso_favorecido', 0)
         if aviso not in [0, 1]:
@@ -336,8 +375,14 @@ class BradescoTEDGenerator:
         line += fields.format_numeric(0, 15)  # Valor da Multa (196-210)
         line += fields.format_alphanumeric('', 1)  # Tipo Chave PIX (não usado em TED) (211)
         line += fields.format_alphanumeric('', 14)  # Chave PIX (não usado em TED) (212-225)
-        # Uso exclusivo Febraban (colunas 226-240): DEIXAR EM BRANCO
-        line += fields.format_alphanumeric('', 15)  # Uso exclusivo Febraban (226-240, 15 posições em branco)
+        # Código aviso ao favorecido (coluna 226): OBRIGATÓRIO
+        # 0 = Não emite aviso, 1 = Emite aviso
+        aviso_fav = pagamento.get('aviso_favorecido', 0)
+        if aviso_fav not in [0, 1]:
+            aviso_fav = 0
+        line += fields.format_numeric(aviso_fav, 1)  # Código aviso ao favorecido (226)
+        # Uso exclusivo Febraban (colunas 227-240): DEIXAR EM BRANCO
+        line += fields.format_alphanumeric('', 14)  # Uso exclusivo Febraban (227-240, 14 posições em branco)
         
         return fields.ensure_length_240(line)
     

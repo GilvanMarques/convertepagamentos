@@ -8,3 +8,6 @@ from . import config
 
 __all__ = ['BradescoPIXGenerator', 'fields', 'validate', 'config']
 
+
+
+

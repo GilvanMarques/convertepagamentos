@@ -217,10 +217,10 @@ if uploaded_file is not None:
         
         # Cria DataFrame para exibição
         df_display = df.copy()
-        st.dataframe(df_display, use_container_width=True, height=400)
+        st.dataframe(df_display, width="stretch", height=400)
         
         # Botão para limpar
-        if st.button("🗑️ Limpar Dados", use_container_width=True):
+        if st.button("🗑️ Limpar Dados", width="stretch"):
             st.session_state.pagamentos = None
             st.session_state.pagamentos_df = None
             st.rerun()
