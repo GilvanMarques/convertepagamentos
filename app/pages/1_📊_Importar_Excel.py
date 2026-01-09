@@ -5,6 +5,7 @@ Permite fazer upload e visualizar o arquivo Excel de pagamentos
 import streamlit as st
 from pathlib import Path
 import sys
+import re
 from datetime import datetime
 
 # Verifica dependências
@@ -72,6 +73,34 @@ if uploaded_file is not None:
         # Normaliza nomes das colunas
         df.columns = df.columns.str.strip().str.lower()
         
+        # Funções auxiliares para processamento
+        def clean_numeric(value):
+            """Limpa valores numéricos removendo .0 e espaços."""
+            if pd.isna(value):
+                return ''
+            value_str = str(value).replace('.0', '').strip()
+            return value_str
+        
+        def normalize_numeric_field(value, length):
+            """
+            Normaliza campo numérico preenchendo com zeros à esquerda.
+            
+            Args:
+                value: Valor a ser normalizado
+                length: Tamanho total desejado
+            
+            Returns:
+                String normalizada com zeros à esquerda
+            """
+            if pd.isna(value) or value == '':
+                return ''
+            # Remove caracteres não numéricos
+            value_str = re.sub(r'[^0-9]', '', str(value))
+            if not value_str:
+                return ''
+            # Preenche com zeros à esquerda até o tamanho desejado
+            return value_str.zfill(length)
+        
         pagamentos = []
 
         for index, row in df.iterrows():
@@ -95,13 +124,6 @@ if uploaded_file is not None:
             else:
                 data_vencimento = ''
 
-            # Limpa valores numéricos
-            def clean_numeric(value):
-                if pd.isna(value):
-                    return ''
-                value_str = str(value).replace('.0', '').strip()
-                return value_str
-
             pagamento = {
                 'tipo_pagamento': str(row.get('tipo_pagamento', 'PIX')).strip().upper() if pd.notna(row.get('tipo_pagamento')) else 'PIX',
                 'id_pagamento': str(row.get('id_pagamento', '')).strip() if pd.notna(row.get('id_pagamento')) else '',
@@ -114,14 +136,14 @@ if uploaded_file is not None:
                 'tipo_chave_pix': str(row.get('tipo_chave_pix', '')).strip().upper() if pd.notna(row.get('tipo_chave_pix')) else '',
                 'chave_pix': clean_numeric(row.get('chave_pix', '')),
                 'txid': str(row.get('txid', '')).strip() if pd.notna(row.get('txid')) else '',
-                # Campos TED/DOC
-                'banco_favorecido': clean_numeric(row.get('banco_favorecido', '')),
-                'agencia_favorecido': clean_numeric(row.get('agencia_favorecido', '')),
+                # Campos TED/DOC (normalizados com zeros à esquerda)
+                'banco_favorecido': normalize_numeric_field(row.get('banco_favorecido', ''), 3),
+                'agencia_favorecido': normalize_numeric_field(row.get('agencia_favorecido', ''), 5),
                 'digito_agencia_favorecido': clean_numeric(row.get('digito_agencia_favorecido', '')),
-                'conta_favorecido': clean_numeric(row.get('conta_favorecido', '')),
+                'conta_favorecido': clean_numeric(row.get('conta_favorecido', '')),  # Mantém zeros à esquerda originais
                 'digito_conta_favorecido': clean_numeric(row.get('digito_conta_favorecido', '')),
-                'tipo_conta': clean_numeric(row.get('tipo_conta', '1')),
-                'finalidade_ted': clean_numeric(row.get('finalidade_ted', '00001')),
+                'tipo_conta': normalize_numeric_field(row.get('tipo_conta', '1'), 1),
+                'finalidade_ted': normalize_numeric_field(row.get('finalidade_ted', '00001'), 5),
                 'aviso_favorecido': int(row.get('aviso_favorecido', 0)) if pd.notna(row.get('aviso_favorecido')) else 0,
                 # Campos adicionais
                 'descricao_pagamento': str(row.get('descricao_pagamento', '')).strip() if pd.notna(row.get('descricao_pagamento')) else '',
@@ -173,8 +195,69 @@ if uploaded_file is not None:
 
         if erros:
             st.error(f"❌ {len(erros)} erro(s) encontrado(s). Corrija o Excel e faça novo upload para liberar a geração do CNAB.")
+            
+            # Seção de debug com detalhes dos erros
+            with st.expander("🔍 Ver Detalhes dos Erros", expanded=True):
+                st.markdown("### 📋 Erros Encontrados")
+                if erros:
+                    # Cria DataFrame para exibir erros
+                    erros_df = pd.DataFrame(erros)
+                    st.dataframe(
+                        erros_df,
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "id_pagamento": st.column_config.TextColumn("ID Pagamento", width="small"),
+                            "status": st.column_config.TextColumn("Status", width="small"),
+                            "mensagem": st.column_config.TextColumn("Mensagem de Erro", width="large")
+                        }
+                    )
+                else:
+                    st.info("Nenhum erro encontrado.")
+                
+                if avisos:
+                    st.markdown("### ⚠️ Avisos Encontrados")
+                    avisos_df = pd.DataFrame(avisos)
+                    st.dataframe(
+                        avisos_df,
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "id_pagamento": st.column_config.TextColumn("ID Pagamento", width="small"),
+                            "status": st.column_config.TextColumn("Status", width="small"),
+                            "mensagem": st.column_config.TextColumn("Mensagem de Aviso", width="large")
+                        }
+                    )
+                
+                # Resumo estatístico
+                st.markdown("### 📊 Resumo da Validação")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total de Pagamentos", st.session_state.validacao_resultado['total'])
+                with col2:
+                    st.metric("✅ Válidos", st.session_state.validacao_resultado['total_validos'], delta=None)
+                with col3:
+                    st.metric("❌ Erros", st.session_state.validacao_resultado['total_erros'], delta=None, delta_color="inverse")
+                with col4:
+                    st.metric("⚠️ Avisos", st.session_state.validacao_resultado['total_avisos'], delta=None)
         else:
             st.success("✅ Arquivo validado com sucesso! Você já pode ir em **Gerar CNAB**.")
+            
+            # Mostra avisos mesmo quando não há erros
+            if avisos:
+                with st.expander("⚠️ Ver Avisos", expanded=False):
+                    st.markdown("### ⚠️ Avisos Encontrados")
+                    avisos_df = pd.DataFrame(avisos)
+                    st.dataframe(
+                        avisos_df,
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "id_pagamento": st.column_config.TextColumn("ID Pagamento", width="small"),
+                            "status": st.column_config.TextColumn("Status", width="small"),
+                            "mensagem": st.column_config.TextColumn("Mensagem de Aviso", width="large")
+                        }
+                    )
         
         # Botão para limpar
         if st.button("🗑️ Limpar Dados", width="stretch"):

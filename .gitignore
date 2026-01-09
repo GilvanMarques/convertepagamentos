@@ -46,6 +46,7 @@ output/_config_streamlit.yaml
 # Arquivos Excel temporários
 ~$*.xlsx
 ~$*.xls
+data/*.lock
 
 # Arquivos locais (não versionar)
 Notas Webiss.xlsx
